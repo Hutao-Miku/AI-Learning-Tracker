@@ -38,7 +38,7 @@
     </el-row>
 
     <!-- 2. 核心功能区分栏：左右两列 -->
-    <el-row :gutter="20" class="cols">
+    <el-row :gutter="24" class="cols">
       <!-- 左列：今天要处理 / 复习提醒 -->
       <el-col :xs="24" :md="10">
         <div class="panel">
@@ -519,6 +519,20 @@ onMounted(loadDashboard)
 }
 .panel-body {
   padding: 18px 22px;
+}
+
+/* 2. 左右两列面板：显式留白 + 等高，确保宽屏下边界清晰、不粘连
+   （不依赖 el-row 的 gutter 是否生效，用 margin 兜底，即使 gutter 失效也有明显缝隙） */
+.cols {
+  align-items: stretch;
+}
+.cols .el-col {
+  display: flex;
+}
+.cols .panel {
+  height: 100%;
+  flex: 1;
+  margin: 0 12px 20px;
 }
 
 /* 左列：复习卡片 */
