@@ -5,7 +5,7 @@ baseDir = fso.GetParentFolderName(scriptPath)
 backendDir = fso.BuildPath(baseDir, "backend")
 frontendDir = fso.BuildPath(baseDir, "frontend")
 
-WshShell.Run "cmd /c cd /d """ & backendDir & """ && mvn spring-boot:run", 0, False
+WshShell.Run "cmd /c cd /d """ & backendDir & """ && mvn spring-boot:run -Dspring-boot.run.arguments="""--server.port=8080""", 0, False
 WshShell.Run "cmd /c cd /d """ & frontendDir & """ && npm run dev", 0, False
 
 Dim http, ok, elapsed
@@ -32,5 +32,5 @@ Loop
 If ok Then
     WshShell.Run "http://localhost:5173", 1, False
 Else
-    MsgBox "Æô¶¯¿ÉÄÜÊ§°Ü£¬ÇëÔËÐÐ start.bat ÅÅ²é¡£", vbExclamation, "Æô¶¯ÌáÊ¾"
+    MsgBox "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ start.bat ï¿½Å²é¡£", vbExclamation, "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾"
 End If
