@@ -404,7 +404,7 @@ onMounted(loadDashboard)
 
 /* 1. 顶部总览卡片 */
 .overview {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 .ov-card {
   background: #fff;
@@ -473,7 +473,7 @@ onMounted(loadDashboard)
   background: #fff;
   border-radius: 14px;
   box-shadow: 0 2px 10px rgba(31, 41, 55, 0.06);
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   overflow: hidden;
 }
 .panel-head {
@@ -521,10 +521,11 @@ onMounted(loadDashboard)
   padding: 18px 22px;
 }
 
-/* 2. 左右两列面板：显式留白 + 等高，确保宽屏下边界清晰、不粘连
-   （不依赖 el-row 的 gutter 是否生效，用 margin 兜底，即使 gutter 失效也有明显缝隙） */
+/* 2. 左右两列面板：横向留白 + 等高（横向不动，仅兜底 gutter）
+   纵向间距由下方 .cols 的 margin-bottom 统一控制，避免与面板自身 margin 重复叠加 */
 .cols {
   align-items: stretch;
+  margin-bottom: 24px;
 }
 .cols .el-col {
   display: flex;
@@ -532,7 +533,7 @@ onMounted(loadDashboard)
 .cols .panel {
   height: 100%;
   flex: 1;
-  margin: 0 12px 20px;
+  margin: 0 12px;
 }
 
 /* 左列：复习卡片 */
