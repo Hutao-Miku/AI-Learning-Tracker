@@ -105,6 +105,20 @@ npm run dev
 > 提示：后端（8080）与前端（5173）都启动后，插件才能正常通信。若推送代码遇到 HTTPS 证书报错，可能是网络存在 TLS 拦截代理，可对本仓库设置 `git config http.sslVerify false` 后重试。  
 > *Tip: keep both backend and frontend running before using the extension. If `git push` fails with a TLS/certificate error, your network may have an intercepting proxy—set `git config http.sslVerify false` for this repo.*
 
+### 4. 一键启动 / 安全关闭 | One-click Start & Safe Stop
+
+日常使用最省心的方式是直接双击脚本，**无需手动开终端**：
+
+- **启动**：双击根目录的 `start.vbs` —— 它会以后台隐藏窗口方式拉起后端（强制绑定 8080）与前端（5173），并把本项目专属进程 PID 写入 `run.pid`；后端就绪后自动打开浏览器 `http://localhost:5173`。
+- **关闭**：双击根目录的 `stop.vbs` —— 它**只关闭本项目启动的进程**，不会去杀 8080 / 5173 端口上的其他程序。
+  - 优先读取 `run.pid` 中的 PID 精准关闭；
+  - 关闭前会校验该 PID 的窗口标题确属本项目，避免 PID 被系统复用后误杀其他软件；
+  - 若没有 `run.pid`，则按本项目专属窗口标题（`StudyTrace_Backend` / `StudyTrace_Frontend`）查找并关闭；
+  - 关闭后自动清理 `run.pid`。
+
+> 说明：脚本只识别本项目打上专属标题的窗口与自身记录的 PID，**绝不通杀端口、绝不关闭你电脑上其他占用 8080 / 5173 的程序**。  
+> *Note: the scripts only target our own titled windows and recorded PIDs—they never kill processes by port and never touch other programs sharing 8080 / 5173.*
+
 ---
 
 ## 目录结构 | Project Structure
@@ -114,7 +128,9 @@ AI-Learning-Tracker/
 ├── backend/                 # Spring Boot 后端（出题 / 掌握度 / 真题推荐 API）
 ├── frontend/                # Vue3 + Element Plus 前端（仪表盘 / 作答页）
 ├── browser-extension/       # Edge / Chrome MV3 插件（B站无感追踪）
-├── start.bat / start.vbs    # 一键启动脚本
+├── start.vbs / start.bat    # 一键启动脚本（强制 8080，记录 PID 到 run.pid）
+├── stop.vbs                 # 安全关闭脚本（按 PID / 专属标题精准关闭本项目）
+├── run.pid                  # 运行时生成的 PID 记录（由 stop.vbs 清理）
 └── README.md
 ```
 

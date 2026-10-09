@@ -24,6 +24,9 @@ Thumbs.db
 *.tmp
 *.bak
 
+# ===== 运行时 PID 记录（由 stop.vbs 生成/清理，不入库） =====
+run.pid
+
 # ===== 内部运行元数据（WorkBuddy 项目数据，非用户代码） =====
 .workbuddy/
 
