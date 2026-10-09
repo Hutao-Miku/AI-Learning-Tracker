@@ -1,0 +1,32 @@
+# ===== 编译 / 构建产物 =====
+target/
+node_modules/
+dist/
+build/
+
+# ===== 本地数据库（H2 文件模式，含用户数据，绝不入库） =====
+data/
+*.mv.db
+*.lock.db
+*.trace.db
+
+# ===== IDE =====
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+
+# ===== 系统 / 杂项 =====
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+
+# ===== 内部运行元数据（WorkBuddy 项目数据，非用户代码） =====
+.workbuddy/
+
+# ===== 环境变量 / 密钥（切勿提交真实 Key） =====
+.env
+.env.local

@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "AI 学习追踪 · B站无感出题",
+  "version": "1.1.0",
+  "description": "观看 B站视频进度达到 95% 时，自动抓取视频内容并调用本地后端生成题目，弹窗引导前去作答。（需开启「学习模式」才会生效）",
+  "permissions": ["storage", "activeTab", "scripting", "notifications"],
+  "host_permissions": [
+    "*://*.bilibili.com/video/*",
+    "http://localhost:8080/*",
+    "http://localhost:5173/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AI 学习追踪 · B站无感出题"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.bilibili.com/video/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ai-learning-tracker
+  datasource:
+    # 文件模式：数据落盘到 ./data/ailearning.mv.db，重启不丢失
+    url: jdbc:h2:file:./data/ailearning;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      # update：保留已有数据，仅增量建表/加列（不再 create-drop 清空）
+      ddl-auto: update
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+
+# 智谱 AI 配置（API Key 从环境变量读取，不硬编码）
+zhipu:
+  api:
+    base-url: https://open.bigmodel.cn/api/paas/v4
+    model: glm-4.7-flash
+    api-key: ${ZHIPU_API_KEY:}
+    # 超时配置：连接 10 秒、模型响应最长 30 秒，避免前端一直等待
+    connect-timeout-seconds: 10
+    read-timeout-seconds: 30

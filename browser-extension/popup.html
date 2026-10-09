@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px 18px;
+      width: 280px;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: #1f2329;
+      background: #fff;
+    }
+    .title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .title .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #c0c4cc;
+    }
+    .title .dot.on { background: #67c23a; }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+    }
+    .row .label { font-size: 13px; line-height: 1.5; }
+    .row .sub { font-size: 11px; color: #909399; margin-top: 2px; }
+    /* 开关样式 */
+    .switch { position: relative; width: 44px; height: 24px; flex: 0 0 auto; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #dcdfe6; border-radius: 24px; transition: .2s;
+    }
+    .slider:before {
+      content: ""; position: absolute; height: 18px; width: 18px;
+      left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s;
+    }
+    .switch input:checked + .slider { background: #409eff; }
+    .switch input:checked + .slider:before { transform: translateX(20px); }
+    .status {
+      margin-top: 6px; font-size: 12px; color: #909399;
+      background: #f4f4f5; border-radius: 6px; padding: 8px 10px; line-height: 1.5;
+    }
+    .status.on { color: #67c23a; background: #f0f9eb; }
+    .tip { margin-top: 10px; font-size: 11px; color: #c0c4cc; line-height: 1.5; }
+    .divider { height: 1px; background: #ebeef5; margin: 12px 0; }
+    .btn {
+      width: 100%; padding: 9px 0; border: 1px solid #dcdfe6; border-radius: 8px;
+      background: #409eff; color: #fff; font-size: 13px; cursor: pointer; font-family: inherit;
+    }
+    .btn:hover { background: #66b1ff; }
+  </style>
+</head>
+<body>
+  <div class="title"><span class="dot" id="dot"></span>学习模式</div>
+
+  <div class="row">
+    <div class="label">
+      B站视频看到 95% 自动出题
+      <div class="sub">关闭时，看任何视频都不会自动出题</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="studyMode" />
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="status" id="status">当前：未开启</div>
+
+  <div class="divider"></div>
+
+  <button class="btn" id="showWidget">显示悬浮窗</button>
+  <div class="tip">若 B站页面上的悬浮窗被你点 × 关掉了，点这里重新显示它（需先切到 B站视频页）。</div>
+  <div class="tip">设置自动保存在本地，下次打开浏览器依然生效。</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
