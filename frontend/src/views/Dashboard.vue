@@ -12,7 +12,7 @@
     </div>
 
     <!-- 1. 顶部总览卡片区 -->
-    <el-row :gutter="20" class="overview">
+    <el-row :gutter="20" class="overview" style="margin-bottom: 24px;">
       <el-col v-for="card in cards" :key="card.key" :xs="24" :sm="12" :lg="6">
         <div class="ov-card">
           <div class="ov-icon" :class="card.cls">
@@ -38,7 +38,7 @@
     </el-row>
 
     <!-- 2. 核心功能区分栏：左右两列 -->
-    <el-row :gutter="24" class="cols">
+    <el-row :gutter="24" class="cols" style="margin-top: 24px !important; margin-bottom: 24px !important;">
       <!-- 左列：今天要处理 / 复习提醒 -->
       <el-col :xs="24" :md="10">
         <div class="panel">
@@ -113,7 +113,7 @@
     </el-row>
 
     <!-- 3. 底部数据可视化：本周学习节奏 -->
-    <div class="panel weekly">
+    <div class="panel weekly" style="margin-top: 24px !important;">
       <div class="panel-head">
         <span class="panel-title">本周学习节奏</span>
         <span class="panel-sub">每日学习时长（分钟）</span>
