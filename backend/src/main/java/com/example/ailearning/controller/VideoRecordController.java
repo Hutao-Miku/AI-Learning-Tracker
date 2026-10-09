@@ -1,6 +1,7 @@
 package com.example.ailearning.controller;
 
 import com.example.ailearning.common.Result;
+import com.example.ailearning.dto.BatchAddRequest;
 import com.example.ailearning.entity.VideoRecord;
 import com.example.ailearning.service.VideoRecordService;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +21,16 @@ public class VideoRecordController {
     @GetMapping("/list/{courseId}")
     public Result<List<VideoRecord>> list(@PathVariable Long courseId) {
         return Result.success(videoRecordService.listByCourse(courseId));
+    }
+
+    @PostMapping("/batch")
+    public Result<List<VideoRecord>> batch(@RequestBody BatchAddRequest request) {
+        try {
+            List<VideoRecord> list = videoRecordService.batchAdd(request);
+            return Result.success("批量记录成功，共 " + list.size() + " 条", list);
+        } catch (IllegalArgumentException e) {
+            return Result.error(400, e.getMessage());
+        }
     }
 
     @PostMapping("/add")

@@ -7,7 +7,10 @@
             <el-button @click="goBack">返回课程列表</el-button>
             <span class="course-title">课程：{{ courseName }}</span>
           </div>
-          <el-button type="primary" @click="openAddDialog">添加视频记录</el-button>
+          <div class="header-right">
+            <el-button type="primary" @click="openAddDialog">添加视频记录</el-button>
+            <el-button type="success" @click="openBatchDialog">批量记录</el-button>
+          </div>
         </div>
       </template>
 
@@ -78,6 +81,39 @@
         <el-button type="primary" :loading="submitting" @click="handleAdd">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 批量记录弹窗 -->
+    <el-dialog
+      v-model="batchVisible"
+      title="批量记录视频"
+      width="460px"
+      @closed="resetBatchForm"
+    >
+      <el-form :model="batchForm" :rules="batchRules" ref="batchFormRef" label-width="90px">
+        <el-form-item label="起始集数" prop="startEpisode">
+          <el-input-number v-model="batchForm.startEpisode" :min="1" :max="9999" />
+        </el-form-item>
+        <el-form-item label="结束集数" prop="endEpisode">
+          <el-input-number v-model="batchForm.endEpisode" :min="1" :max="9999" />
+        </el-form-item>
+        <el-form-item label="单集时长(秒)" prop="duration">
+          <el-input-number v-model="batchForm.duration" :min="0" :max="100000" />
+        </el-form-item>
+        <el-form-item label="观看进度" prop="watchProgress">
+          <el-slider v-model="batchForm.watchProgress" :min="0" :max="100" show-input />
+        </el-form-item>
+        <el-alert
+          type="info"
+          :closable="false"
+          style="margin-top: -8px"
+          title="区间内已存在的记录会被更新，不存在的会自动新增；课程已完成集数会按进度自动重算。"
+        />
+      </el-form>
+      <template #footer>
+        <el-button @click="batchVisible = false">取消</el-button>
+        <el-button type="success" :loading="batchSubmitting" @click="handleBatch">批量记录</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -97,6 +133,10 @@ const dialogVisible = ref(false)
 const submitting = ref(false)
 const formRef = ref(null)
 
+const batchVisible = ref(false)
+const batchSubmitting = ref(false)
+const batchFormRef = ref(null)
+
 const form = ref({
   episodeNumber: 1,
   title: '',
@@ -109,6 +149,18 @@ const rules = {
   episodeNumber: [{ required: true, message: '请输入集数', trigger: 'blur' }],
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   watchProgress: [{ required: true, message: '请输入进度', trigger: 'blur' }]
+}
+
+const batchForm = ref({
+  startEpisode: 1,
+  endEpisode: 1,
+  duration: 0,
+  watchProgress: 100
+})
+
+const batchRules = {
+  startEpisode: [{ required: true, message: '请输入起始集数', trigger: 'blur' }],
+  endEpisode: [{ required: true, message: '请输入结束集数', trigger: 'blur' }]
 }
 
 function formatDuration(sec) {
@@ -172,6 +224,54 @@ function openAddDialog() {
 function resetForm() {
   form.value = { episodeNumber: 1, title: '', duration: 0, watchProgress: 0, notes: '' }
   formRef.value?.clearValidate()
+}
+
+function openBatchDialog() {
+  batchVisible.value = true
+}
+
+function resetBatchForm() {
+  batchForm.value = { startEpisode: 1, endEpisode: 1, duration: 0, watchProgress: 100 }
+  batchFormRef.value?.clearValidate()
+}
+
+async function handleBatch() {
+  try {
+    await batchFormRef.value.validate()
+  } catch {
+    return
+  }
+  if (batchForm.value.startEpisode > batchForm.value.endEpisode) {
+    ElMessage.error('起始集数不能大于结束集数')
+    return
+  }
+  batchSubmitting.value = true
+  try {
+    const payload = {
+      courseId: courseId.value,
+      startEpisode: Number(batchForm.value.startEpisode),
+      endEpisode: Number(batchForm.value.endEpisode),
+      duration: Number(batchForm.value.duration),
+      watchProgress: Number(batchForm.value.watchProgress)
+    }
+    const res = await fetch('/api/video/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    const json = await res.json()
+    if (json.code === 200) {
+      ElMessage.success(json.message || '批量记录成功')
+      batchVisible.value = false
+      await fetchVideos()
+    } else {
+      ElMessage.error(json.message || '批量记录失败')
+    }
+  } catch (e) {
+    ElMessage.error('请求失败：' + e.message)
+  } finally {
+    batchSubmitting.value = false
+  }
 }
 
 async function handleAdd() {
@@ -249,6 +349,11 @@ watch(() => route.params.id, () => loadAll())
   align-items: center;
 }
 .header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-right {
   display: flex;
   align-items: center;
   gap: 12px;

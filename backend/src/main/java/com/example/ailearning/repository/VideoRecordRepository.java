@@ -11,6 +11,9 @@ public interface VideoRecordRepository extends JpaRepository<VideoRecord, Long> 
 
     List<VideoRecord> findByCourseIdOrderByEpisodeNumberAscIdAsc(Long courseId);
 
+    /** 该课程下，集数落在 [start, end] 区间的记录，用于批量 upsert 去重 */
+    List<VideoRecord> findByCourseIdAndEpisodeNumberBetween(Long courseId, int start, int end);
+
     VideoRecord findByBvid(String bvid);
 
     /** 该课程下已看完（进度 >= 100）的不同集数数量 */

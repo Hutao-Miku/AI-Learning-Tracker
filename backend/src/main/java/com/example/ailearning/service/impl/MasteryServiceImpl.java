@@ -2,6 +2,7 @@ package com.example.ailearning.service.impl;
 
 import com.example.ailearning.dto.DashboardResponse;
 import com.example.ailearning.dto.RecommendResponse;
+import com.example.ailearning.dto.WeeklyResponse;
 import com.example.ailearning.entity.AnswerRecord;
 import com.example.ailearning.entity.Question;
 import com.example.ailearning.repository.AnswerRecordRepository;
@@ -100,6 +101,47 @@ public class MasteryServiceImpl implements MasteryService {
                 })
                 .collect(Collectors.toList());
         resp.setWeakPoints(weak);
+        return resp;
+    }
+
+    // ===================== Weekly =====================
+
+    private static final String[] WEEKDAY_LABELS = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+
+    @Override
+    public WeeklyResponse getWeekly() {
+        WeeklyResponse resp = new WeeklyResponse();
+        LocalDate today = LocalDate.now();
+        LocalDate start = today.minusDays(6); // 过去 7 天（含今天）
+
+        // 预置 7 天，保证即使某天无数据也返回（值为 0）
+        Map<LocalDate, WeeklyResponse.DayStat> bucket = new LinkedHashMap<>();
+        DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        for (int i = 0; i < 7; i++) {
+            LocalDate d = start.plusDays(i);
+            WeeklyResponse.DayStat s = new WeeklyResponse.DayStat();
+            s.setDate(df.format(d));
+            s.setWeekday(WEEKDAY_LABELS[d.getDayOfWeek().getValue() - 1]);
+            s.setAnswerCount(0);
+            s.setStudyMinutes(0);
+            bucket.put(d, s);
+        }
+
+        // 统计窗口内的作答记录
+        List<AnswerRecord> records =
+                answerRecordRepository.findByAnsweredTimeBetween(start.atStartOfDay(), LocalDateTime.now());
+        for (AnswerRecord a : records) {
+            if (a.getAnsweredTime() == null) continue;
+            LocalDate d = a.getAnsweredTime().toLocalDate();
+            WeeklyResponse.DayStat s = bucket.get(d);
+            if (s == null) continue; // 理论上不会越界
+            s.setAnswerCount(s.getAnswerCount() + 1);
+            if (a.getDurationSeconds() != null) {
+                s.setStudyMinutes(s.getStudyMinutes() + a.getDurationSeconds() / 60);
+            }
+        }
+
+        resp.setDays(new ArrayList<>(bucket.values()));
         return resp;
     }
 
