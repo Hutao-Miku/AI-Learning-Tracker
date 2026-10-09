@@ -3,6 +3,8 @@ package com.example.ailearning.controller;
 import com.example.ailearning.common.Result;
 import com.example.ailearning.dto.DashboardResponse;
 import com.example.ailearning.dto.RecommendResponse;
+import com.example.ailearning.dto.ReportResponse;
+import com.example.ailearning.dto.SummaryResponse;
 import com.example.ailearning.dto.WeeklyResponse;
 import com.example.ailearning.service.MasteryService;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +32,24 @@ public class MasteryController {
     public Result<WeeklyResponse> weekly() {
         try {
             return Result.success("ok", masteryService.getWeekly());
+        } catch (Exception e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    @GetMapping("/summary")
+    public Result<SummaryResponse> summary(@RequestParam String period) {
+        try {
+            return Result.success("ok", masteryService.getSummary(period));
+        } catch (Exception e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    @PostMapping("/report")
+    public Result<ReportResponse> report(@RequestParam String period) {
+        try {
+            return Result.success("ok", masteryService.generateReport(period));
         } catch (Exception e) {
             return Result.error(400, e.getMessage());
         }

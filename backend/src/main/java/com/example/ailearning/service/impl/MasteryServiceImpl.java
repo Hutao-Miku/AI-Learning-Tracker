@@ -1,12 +1,17 @@
 package com.example.ailearning.service.impl;
 
+import com.example.ailearning.config.ZhipuAiClient;
 import com.example.ailearning.dto.DashboardResponse;
 import com.example.ailearning.dto.RecommendResponse;
+import com.example.ailearning.dto.ReportResponse;
+import com.example.ailearning.dto.SummaryResponse;
 import com.example.ailearning.dto.WeeklyResponse;
 import com.example.ailearning.entity.AnswerRecord;
 import com.example.ailearning.entity.Question;
+import com.example.ailearning.entity.StudyReport;
 import com.example.ailearning.repository.AnswerRecordRepository;
 import com.example.ailearning.repository.QuestionRepository;
+import com.example.ailearning.repository.StudyReportRepository;
 import com.example.ailearning.service.MasteryService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,10 +20,13 @@ import org.springframework.web.client.RestTemplate;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -33,6 +41,8 @@ public class MasteryServiceImpl implements MasteryService {
 
     private final AnswerRecordRepository answerRecordRepository;
     private final QuestionRepository questionRepository;
+    private final StudyReportRepository studyReportRepository;
+    private final ZhipuAiClient zhipuAiClient;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -42,9 +52,13 @@ public class MasteryServiceImpl implements MasteryService {
 
     public MasteryServiceImpl(AnswerRecordRepository answerRecordRepository,
                              QuestionRepository questionRepository,
+                             StudyReportRepository studyReportRepository,
+                             ZhipuAiClient zhipuAiClient,
                              RestTemplate restTemplate) {
         this.answerRecordRepository = answerRecordRepository;
         this.questionRepository = questionRepository;
+        this.studyReportRepository = studyReportRepository;
+        this.zhipuAiClient = zhipuAiClient;
         this.restTemplate = restTemplate;
     }
 
@@ -142,6 +156,217 @@ public class MasteryServiceImpl implements MasteryService {
         }
 
         resp.setDays(new ArrayList<>(bucket.values()));
+        return resp;
+    }
+
+    // ===================== Summary（周期归档） =====================
+
+    private static final DateTimeFormatter F_DAY = DateTimeFormatter.ofPattern("MM-dd");
+    private static final DateTimeFormatter F_FULL = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter F_MONTH = DateTimeFormatter.ofPattern("yyyy-MM");
+
+    @Override
+    public SummaryResponse getSummary(String period) {
+        SummaryResponse resp = new SummaryResponse();
+        resp.setPeriod(period);
+
+        // 取全部作答记录，按周期分组（TreeMap 保证按时间升序）
+        List<AnswerRecord> all = answerRecordRepository.findAll();
+        Function<AnswerRecord, LocalDate> classifier = periodClassifier(period);
+
+        Map<LocalDate, List<AnswerRecord>> groups = all.stream()
+                .filter(a -> a.getAnsweredTime() != null)
+                .collect(Collectors.groupingBy(classifier, TreeMap::new, Collectors.toList()));
+
+        int totalAnswer = 0, totalCorrect = 0, totalMinutes = 0;
+        List<SummaryResponse.PeriodStat> items = new ArrayList<>();
+        for (Map.Entry<LocalDate, List<AnswerRecord>> e : groups.entrySet()) {
+            LocalDate key = e.getKey();
+            List<AnswerRecord> recs = e.getValue();
+            int ans = recs.size();
+            int cor = 0;
+            int sec = 0;
+            for (AnswerRecord a : recs) {
+                if (Boolean.TRUE.equals(a.getIsCorrect())) cor++;
+                if (a.getDurationSeconds() != null) sec += a.getDurationSeconds();
+            }
+            int acc = ans > 0 ? Math.round((float) cor / ans * 100) : 0;
+            totalAnswer += ans;
+            totalCorrect += cor;
+            totalMinutes += sec / 60;
+
+            SummaryResponse.PeriodStat stat = new SummaryResponse.PeriodStat();
+            stat.setKey(periodKey(period, key));
+            stat.setLabel(periodLabel(period, key));
+            stat.setRange(periodRange(period, key));
+            stat.setAnswerCount(ans);
+            stat.setCorrectCount(cor);
+            stat.setAccuracy(acc);
+            stat.setStudyMinutes(sec / 60);
+            items.add(stat);
+        }
+
+        resp.setItems(items);
+        resp.setTotalAnswerCount(totalAnswer);
+        resp.setTotalCorrectCount(totalCorrect);
+        resp.setTotalStudyMinutes(totalMinutes);
+        resp.setOverallAccuracy(totalAnswer > 0 ? Math.round((float) totalCorrect / totalAnswer * 100) : 0);
+        return resp;
+    }
+
+    /** 根据周期类型，把作答记录映射到对应的周期首日 LocalDate（用于 groupingBy） */
+    private Function<AnswerRecord, LocalDate> periodClassifier(String period) {
+        switch (period == null ? "" : period.toLowerCase()) {
+            case "weekly":
+                return a -> mondayOf(a.getAnsweredTime().toLocalDate());
+            case "monthly":
+                return a -> YearMonth.from(a.getAnsweredTime().toLocalDate()).atDay(1);
+            case "yearly":
+                return a -> a.getAnsweredTime().toLocalDate().withDayOfYear(1);
+            case "daily":
+            default:
+                return a -> a.getAnsweredTime().toLocalDate();
+        }
+    }
+
+    private LocalDate mondayOf(LocalDate d) {
+        return d.with(DayOfWeek.MONDAY);
+    }
+
+    private String periodKey(String period, LocalDate d) {
+        switch (period.toLowerCase()) {
+            case "monthly": return d.format(F_MONTH);
+            case "yearly": return String.valueOf(d.getYear());
+            default: return d.format(F_FULL); // daily / weekly 用首日绝对日期作 key
+        }
+    }
+
+    private String periodLabel(String period, LocalDate d) {
+        switch (period.toLowerCase()) {
+            case "monthly": return d.format(F_MONTH);
+            case "yearly": return String.valueOf(d.getYear());
+            default: return d.format(F_DAY);
+        }
+    }
+
+    private String periodRange(String period, LocalDate d) {
+        switch (period.toLowerCase()) {
+            case "weekly": {
+                LocalDate end = d.plusDays(6);
+                return d.format(F_DAY) + " ~ " + end.format(F_DAY);
+            }
+            default:
+                return periodLabel(period, d);
+        }
+    }
+
+    // ===================== Report（AI 学情分析） =====================
+
+    @Override
+    public ReportResponse generateReport(String period) {
+        String p = period == null ? "" : period.toLowerCase();
+        if (!List.of("daily", "weekly", "monthly", "yearly").contains(p)) {
+            throw new RuntimeException("不支持的周期类型：period 必须是 daily / weekly / monthly / yearly 之一");
+        }
+
+        // 1) 计算当前周期窗口 + token（同一周期命中缓存，不重复消耗 AI 额度）
+        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime start;
+        String token;
+        String label;
+        switch (p) {
+            case "weekly": {
+                LocalDate mon = mondayOf(today);
+                start = mon.atStartOfDay();
+                token = "weekly:" + mon.format(F_FULL);
+                label = "本周";
+                break;
+            }
+            case "monthly": {
+                LocalDate first = today.withDayOfMonth(1);
+                start = first.atStartOfDay();
+                token = "monthly:" + first.format(F_MONTH);
+                label = "本月";
+                break;
+            }
+            case "yearly": {
+                LocalDate first = today.withDayOfYear(1);
+                start = first.atStartOfDay();
+                token = "yearly:" + first.getYear();
+                label = "今年";
+                break;
+            }
+            case "daily":
+            default: {
+                start = today.atStartOfDay();
+                token = "daily:" + today.format(F_FULL);
+                label = "今日";
+                break;
+            }
+        }
+
+        // 2) 命中缓存直接返回
+        Optional<StudyReport> cached = studyReportRepository.findByPeriod(token);
+        if (cached.isPresent()) {
+            StudyReport r = cached.get();
+            ReportResponse resp = new ReportResponse();
+            resp.setPeriod(token);
+            resp.setPeriodLabel(label);
+            resp.setContent(r.getContent());
+            resp.setCached(true);
+            resp.setCreatedTime(r.getCreatedTime() != null
+                    ? r.getCreatedTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "");
+            return resp;
+        }
+
+        // 3) 统计当前周期数据
+        List<AnswerRecord> recs = answerRecordRepository.findByAnsweredTimeBetween(start, now);
+        int ans = recs.size();
+        int cor = 0;
+        int sec = 0;
+        for (AnswerRecord a : recs) {
+            if (Boolean.TRUE.equals(a.getIsCorrect())) cor++;
+            if (a.getDurationSeconds() != null) sec += a.getDurationSeconds();
+        }
+        int acc = ans > 0 ? Math.round((float) cor / ans * 100) : 0;
+
+        // 整体掌握度 + 最弱 5 个知识点
+        Map<String, MasteryState> masteryMap = computeMasteryMap();
+        int overall = 0;
+        if (!masteryMap.isEmpty()) {
+            int sum = 0;
+            for (MasteryState s : masteryMap.values()) sum += s.mastery;
+            overall = sum / masteryMap.size();
+        }
+        String weakText = masteryMap.entrySet().stream()
+                .sorted(Comparator.comparingInt((Map.Entry<String, MasteryState> e) -> e.getValue().mastery))
+                .limit(5)
+                .map(e -> "  - " + e.getKey() + "（掌握度 " + e.getValue().mastery + "%）")
+                .collect(Collectors.joining("\n"));
+
+        // 4) 组装 Prompt 并调用 AI
+        String prompt = "你是一位专业的数据分析师，请根据学生" + label + "的学习数据，分析其强项、弱项，并给出至少3条具体的学习改进建议。\n\n"
+                + "【" + label + "学习数据概览】\n"
+                + "- 答题总数：" + ans + " 题\n"
+                + "- 正确率：" + acc + "%\n"
+                + "- 学习总时长：" + (sec / 60) + " 分钟\n"
+                + "- 整体掌握度：" + overall + "%\n"
+                + (weakText.isEmpty() ? "- 薄弱知识点：暂无（尚未形成足够作答记录）\n"
+                                     : "- 当前最薄弱的 5 个知识点：\n" + weakText + "\n")
+                + "\n请用清晰的条理（分点、换行）输出分析报告，先总结整体表现，再指出强项与弱项，最后给出可落地的改进建议。";
+
+        String content = zhipuAiClient.chat(prompt);
+
+        // 5) 落库（同一 token 唯一，重复提交由数据库唯一约束兜底）
+        StudyReport saved = studyReportRepository.save(new StudyReport(token, content, now));
+
+        ReportResponse resp = new ReportResponse();
+        resp.setPeriod(token);
+        resp.setPeriodLabel(label);
+        resp.setContent(saved.getContent());
+        resp.setCached(false);
+        resp.setCreatedTime(saved.getCreatedTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
         return resp;
     }
 

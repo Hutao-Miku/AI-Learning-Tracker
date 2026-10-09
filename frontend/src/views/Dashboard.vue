@@ -136,6 +136,43 @@
       </div>
     </div>
 
+    <!-- 4. AI 学情分析报告 -->
+    <div class="panel report">
+      <div class="panel-head">
+        <span class="panel-title">学情分析报告</span>
+        <div class="report-actions">
+          <el-button
+            size="small"
+            :type="reportPeriod === 'weekly' ? 'primary' : 'default'"
+            :loading="reportLoading && reportPeriod === 'weekly'"
+            @click="loadReport('weekly')"
+          >查看周报</el-button>
+          <el-button
+            size="small"
+            :type="reportPeriod === 'monthly' ? 'primary' : 'default'"
+            :loading="reportLoading && reportPeriod === 'monthly'"
+            @click="loadReport('monthly')"
+          >查看月报</el-button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <el-skeleton v-if="reportLoading" :rows="6" animated />
+        <el-empty
+          v-else-if="!reportContent"
+          :image-size="90"
+          description="点击上方「查看周报 / 月报」，让 AI 为你生成专属学情分析"
+        />
+        <div v-else class="report-content">
+          <div class="report-meta">
+            <el-tag size="small" effect="plain">{{ reportLabel }}</el-tag>
+            <el-tag v-if="reportCached" size="small" type="success" effect="plain">已缓存 · 未重复消耗 AI 额度</el-tag>
+            <span class="report-time">生成于 {{ reportTime }}</span>
+          </div>
+          <div class="report-text">{{ reportContent }}</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 真题推荐弹窗 -->
     <el-dialog v-model="dialogVisible" :title="'真实竞赛真题推荐 · ' + recKp" width="640px" @closed="resetRec">
       <div v-if="rec" class="rec-dialog">
@@ -187,6 +224,14 @@ const dialogVisible = ref(false)
 const rec = ref(null)
 const recKp = ref('')
 const recLoading = ref(false)
+
+// AI 学情分析报告
+const reportLoading = ref(false)
+const reportContent = ref('')
+const reportCached = ref(false)
+const reportLabel = ref('')
+const reportTime = ref('')
+const reportPeriod = ref('')
 
 // 最近 7 天学习节奏（后端真实数据）
 const weekly = ref({ days: [] })
@@ -297,6 +342,27 @@ async function openRecommend(knowledgePoint) {
 
 function resetRec() {
   rec.value = null
+}
+
+async function loadReport(period) {
+  reportPeriod.value = period
+  reportLoading.value = true
+  try {
+    const res = await fetch('/api/mastery/report?period=' + period, { method: 'POST' })
+    const json = await res.json()
+    if (json.code === 200 && json.data) {
+      reportContent.value = json.data.content
+      reportCached.value = json.data.cached
+      reportLabel.value = json.data.periodLabel
+      reportTime.value = json.data.createdTime
+    } else {
+      ElMessage.error(json.message || '生成报告失败')
+    }
+  } catch (e) {
+    ElMessage.error('请求失败：' + e.message + '（请确认后端已启动）')
+  } finally {
+    reportLoading.value = false
+  }
 }
 
 onMounted(loadDashboard)
@@ -602,6 +668,34 @@ onMounted(loadDashboard)
   font-size: 12px;
   color: #aab2c5;
   padding: 10px 0 2px;
+}
+
+/* 底部：学情分析报告 */
+.report-actions {
+  display: flex;
+  gap: 8px;
+}
+.report-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.report-time {
+  font-size: 12px;
+  color: #aab2c5;
+}
+.report-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.85;
+  color: #374151;
+  background: #fafbff;
+  border: 1px solid #eef0f7;
+  border-radius: 10px;
+  padding: 16px 18px;
 }
 
 /* 弹窗 */
