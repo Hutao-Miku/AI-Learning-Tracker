@@ -6,7 +6,8 @@ spring:
     name: ai-learning-tracker
   datasource:
     # 文件模式：数据落盘到 ./data/ailearning.mv.db，重启不丢失
-    url: jdbc:h2:file:./data/ailearning;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
+    # 关闭 AUTO_SERVER：单进程访问即可，避免每次随机占用 TCP 端口导致启动冲突
+    url: jdbc:h2:file:./data/ailearning;AUTO_SERVER=FALSE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password: ""

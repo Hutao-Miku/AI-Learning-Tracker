@@ -173,6 +173,31 @@
       </div>
     </div>
 
+    <!-- 5. 数据保养与防膨胀 -->
+    <div class="panel data-mgmt">
+      <div class="panel-head">
+        <span class="panel-title">数据保养</span>
+        <span class="panel-sub">定期备份与清理，避免数据无限膨胀</span>
+      </div>
+      <div class="dm-body">
+        <div class="dm-item">
+          <div class="dm-text">
+            <div class="dm-name">导出答题数据</div>
+            <div class="dm-desc">将全部答题记录与错题导出为 CSV 文件备份到本地</div>
+          </div>
+          <el-button type="primary" plain @click="exportData">导出 CSV</el-button>
+        </div>
+        <el-divider class="dm-divider" />
+        <div class="dm-item">
+          <div class="dm-text">
+            <div class="dm-name">清理旧数据</div>
+            <div class="dm-desc">删除 180 天前的原始答题记录（保留汇总统计），释放存储空间</div>
+          </div>
+          <el-button type="warning" plain @click="cleanupData">清理旧数据</el-button>
+        </div>
+      </div>
+    </div>
+
     <!-- 真题推荐弹窗 -->
     <el-dialog v-model="dialogVisible" :title="'真实竞赛真题推荐 · ' + recKp" width="640px" @closed="resetRec">
       <div v-if="rec" class="rec-dialog">
@@ -212,7 +237,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, markRaw } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, EditPen, CircleCheck, Timer, DataLine } from '@element-plus/icons-vue'
 
 const loading = ref(false)
@@ -366,6 +391,55 @@ async function loadReport(period) {
 }
 
 onMounted(loadDashboard)
+
+// ===================== 数据保养：导出 / 清理 =====================
+
+async function exportData() {
+  try {
+    const res = await fetch('/api/data/export')
+    if (!res.ok) {
+      ElMessage.error('导出失败：HTTP ' + res.status)
+      return
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const disp = res.headers.get('Content-Disposition') || ''
+    const m = disp.match(/filename="?([^";]+)"?/)
+    a.download = m ? decodeURIComponent(m[1]) : 'answer_records.csv'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    ElMessage.success('已开始下载 CSV 备份')
+  } catch (e) {
+    ElMessage.error('导出失败：' + e.message + '（请确认后端已启动）')
+  }
+}
+
+async function cleanupData() {
+  try {
+    await ElMessageBox.confirm(
+      '将删除 180 天前的原始答题记录（保留汇总统计数据），此操作不可撤销。是否继续？',
+      '清理旧数据',
+      { type: 'warning', confirmButtonText: '确认清理', cancelButtonText: '取消' }
+    )
+  } catch {
+    return // 用户取消
+  }
+  try {
+    const res = await fetch('/api/data/cleanup?days=180', { method: 'DELETE' })
+    const json = await res.json()
+    if (json.code === 200) {
+      ElMessage.success(json.message || '清理完成')
+    } else {
+      ElMessage.error(json.message || '清理失败')
+    }
+  } catch (e) {
+    ElMessage.error('清理失败：' + e.message + '（请确认后端已启动）')
+  }
+}
 </script>
 
 <style scoped>
@@ -736,6 +810,31 @@ onMounted(loadDashboard)
 }
 .rec-fallback {
   padding: 4px 0;
+}
+
+/* 数据保养面板 */
+.dm-body {
+  padding: 18px 22px;
+}
+.dm-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.dm-text { min-width: 0; }
+.dm-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2937;
+}
+.dm-desc {
+  font-size: 13px;
+  color: #8a93a6;
+  margin-top: 4px;
+}
+.dm-divider {
+  margin: 14px 0;
 }
 
 @media (max-width: 768px) {

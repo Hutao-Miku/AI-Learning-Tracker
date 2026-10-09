@@ -4,6 +4,7 @@ import CourseList from '../views/CourseList.vue'
 import VideoList from '../views/VideoList.vue'
 import QuizView from '../views/QuizView.vue'
 import QuizAllView from '../views/QuizAllView.vue'
+import ExamView from '../views/ExamView.vue'
 
 const routes = [
   {
@@ -32,6 +33,11 @@ const routes = [
     path: '/quiz',
     name: 'QuizAllView',
     component: QuizAllView
+  },
+  {
+    path: '/exam',
+    name: 'ExamView',
+    component: ExamView
   }
 ]
 

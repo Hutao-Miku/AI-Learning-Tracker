@@ -5,6 +5,8 @@ import com.example.ailearning.entity.Question;
 import com.example.ailearning.repository.AnswerRecordRepository;
 import com.example.ailearning.repository.QuestionRepository;
 import com.example.ailearning.service.AnswerRecordService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +45,11 @@ public class AnswerRecordServiceImpl implements AnswerRecordService {
     @Override
     public List<AnswerRecord> listByQuestion(Long questionId) {
         return answerRecordRepository.findByQuestionIdOrderByAnsweredTimeDesc(questionId);
+    }
+
+    @Override
+    public Page<AnswerRecord> pageHistory(Pageable pageable) {
+        return answerRecordRepository.findAllByOrderByAnsweredTimeDesc(pageable);
     }
 
     private boolean judge(Question q, String userAnswer) {
