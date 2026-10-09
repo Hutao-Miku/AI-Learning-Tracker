@@ -109,21 +109,18 @@ npm run dev
 
 日常使用最省心的方式是直接双击脚本，**无需手动开终端**：
 
-- **启动**：双击根目录的 `start.vbs` —— 它会以后台隐藏窗口方式拉起后端（强制绑定 8080）与前端（5173），并把本项目专属进程 PID 写入 `run.pid`；后端就绪后自动打开浏览器 `http://localhost:5173`。
+- **启动**：双击根目录的 `start.vbs` —— 它会以**完全隐藏窗口（0 参数）**方式拉起后端（强制绑定 8080）与前端（5173），全程不弹黑框、不闪最小化窗口；后端就绪后自动打开浏览器 `http://localhost:5173`。
 - **用完即走（推荐）**：**直接关闭浏览器里 `localhost:5173` 的标签页即可**。
   - 浏览器插件会监听标签页关闭事件；当**最后一个**本项目标签页被关闭时，自动向后端 `POST /api/system/shutdown` 请求优雅退出。
   - 后端收到请求后先返回成功、再延迟 1 秒安全退出（释放 H2 数据库锁与 8080 端口）。
   - 前端 Vite 内置看门狗：检测到后端（8080）已关闭后，会自动退出 Node 进程（释放 5173 端口）。
   - 于是 **Java 与 Node 两个后台进程都会自动释放**，下次双击 `start.vbs` 不会再遇到端口被占。
   - 该关机接口仅接受浏览器扩展（`chrome-extension://`）来源，普通网页无法调用，安全无虞。
-- **应急兜底**：双击根目录的 `stop.vbs` —— 仅在「插件未加载 / 浏览器被整体关闭导致自动关机失效 / 进程卡死」等极少数情况下手动使用。它**只关闭本项目启动的进程**，不会去杀 8080 / 5173 端口上的其他程序。
-  - 优先读取 `run.pid` 中的 PID 精准关闭；
-  - 关闭前会校验该 PID 的窗口标题确属本项目，避免 PID 被系统复用后误杀其他软件；
-  - 若没有 `run.pid`，则按本项目专属窗口标题（`StudyTrace_Backend` / `StudyTrace_Frontend`）查找并关闭；
-  - 关闭后自动清理 `run.pid`。
+- **应急兜底**：双击根目录的 `stop.vbs` —— 仅在「插件未加载 / 浏览器被整体关闭导致自动关机失效 / 进程卡死」等极少数情况下手动使用。它做的事情很简单：向后端 `POST /api/system/shutdown` 发送一条带 `X-StudyTrace` 令牌的关闭请求，由后端自己优雅退出（前端看门狗随后自动跟随退出）。**它不按端口杀进程、不读 PID、不碰系统其他程序**，因此日常启动体验（无黑框）完全不受影响。
+  - 本质上就是把「关掉网页触发自动退出」这一步手动补上；若后端已彻底卡死、连关闭请求都无响应，请打开任务管理器手动结束 `java` 与 `node` 进程。
 
-> 说明：日常使用只需关掉网页标签页，后台会自动退干净；`stop.vbs` 是插件自动关闭失效时的强制备用手段。脚本本身也只识别本项目打上专属标题的窗口与自身记录的 PID，**绝不通杀端口、绝不关闭你电脑上其他占用 8080 / 5173 的程序**。  
-> *Note: normally you just close the tab and the backend exits automatically; `stop.vbs` is only the fallback when the extension's auto-shutdown fails. The scripts only target our own titled windows and recorded PIDs—they never kill processes by port and never touch other programs sharing 8080 / 5173.*
+> 说明：日常使用只需关掉网页标签页，后台会自动退干净；`stop.vbs` 是插件自动关闭失效时的极简备用手段（本质就是帮你点一下后端的「优雅退出」按钮）。若后端已彻底卡死、连关闭请求都无响应，则请打开任务管理器手动结束 `java` 与 `node` 进程。  
+> *Note: normally you just close the tab and the backend exits automatically; `stop.vbs` is only a minimal fallback that asks the backend's own shutdown API to exit gracefully—it never kills processes by port and never touches other programs.*
 
 ---
 
@@ -134,9 +131,8 @@ AI-Learning-Tracker/
 ├── backend/                 # Spring Boot 后端（出题 / 掌握度 / 真题推荐 API）
 ├── frontend/                # Vue3 + Element Plus 前端（仪表盘 / 作答页）
 ├── browser-extension/       # Edge / Chrome MV3 插件（B站无感追踪）
-├── start.vbs / start.bat    # 一键启动脚本（强制 8080，记录 PID 到 run.pid）
-├── stop.vbs                 # 安全关闭脚本（按 PID / 专属标题精准关闭本项目）
-├── run.pid                  # 运行时生成的 PID 记录（由 stop.vbs 清理）
+├── start.vbs / start.bat    # 一键启动脚本（完全隐藏窗口，强制 8080）
+├── stop.vbs                 # 极简应急脚本（向后端优雅退出接口发请求）
 └── README.md
 ```
 
