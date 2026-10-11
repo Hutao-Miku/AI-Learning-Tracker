@@ -13,8 +13,11 @@ public class ExamQuestionResult {
     private Boolean isCorrect;
     private String correctAnswer;
     private String explanation;
-    /** challenge 题的练习链接 */
+    /** challenge 题的练习链接（真实题面/评测页，非搜索页） */
     private String url;
+    /** 算法题 Codeforces 引用（用于前端实时拉取题面） */
+    private Integer contestId;
+    private String index;
 
     public int getQid() {
         return qid;
@@ -94,5 +97,21 @@ public class ExamQuestionResult {
 
     public void setUrl(String url) {
         this.url = url;
+    }
+
+    public Integer getContestId() {
+        return contestId;
+    }
+
+    public void setContestId(Integer contestId) {
+        this.contestId = contestId;
+    }
+
+    public String getIndex() {
+        return index;
+    }
+
+    public void setIndex(String index) {
+        this.index = index;
     }
 }

@@ -66,7 +66,7 @@
                 <div class="rc-meta">
                   下次复习：<b>{{ item.nextReview }}</b> · 已作答 {{ item.answeredCount }} 次
                 </div>
-                <el-button class="review-btn" @click="openRecommend(item.knowledgePoint)">
+                <el-button class="review-btn" @click="goPractice(item.knowledgePoint)">
                   立即复习
                 </el-button>
               </div>
@@ -102,7 +102,7 @@
                     {{ wp.mastery }}%
                   </span>
                 </div>
-                <el-button type="primary" plain size="small" @click="openRecommend(wp.knowledgePoint)">
+                <el-button type="primary" plain size="small" @click="goPractice(wp.knowledgePoint)">
                   去练真题
                 </el-button>
               </div>
@@ -197,46 +197,12 @@
         </div>
       </div>
     </div>
-
-    <!-- 真题推荐弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="'真实竞赛真题推荐 · ' + recKp" width="640px" @closed="resetRec">
-      <div v-if="rec" class="rec-dialog">
-        <el-alert
-          :type="rec.source === 'codeforces' ? 'success' : 'warning'"
-          :closable="false"
-          show-icon
-          :title="rec.source === 'codeforces'
-            ? '已从 Codeforces 正赛题库匹配到真实真题（非 AI 生成）'
-            : 'Codeforces 暂无匹配，已为你准备好知名题库搜索入口，点击即可去刷'"
-        />
-
-        <div v-if="rec.problems && rec.problems.length" class="rec-section">
-          <div class="rec-section-title">Codeforces 真题</div>
-          <div v-for="(p, i) in rec.problems" :key="i" class="rec-problem">
-            <el-link type="primary" :href="p.url" target="_blank" rel="noopener">
-              {{ p.name }}
-            </el-link>
-            <span class="rec-rating">rating {{ p.rating }}</span>
-            <div class="rec-tags">
-              <el-tag v-for="t in p.tags" :key="t" size="small" effect="plain">{{ t }}</el-tag>
-            </div>
-          </div>
-        </div>
-
-        <div class="rec-section">
-          <div class="rec-section-title">其它知名题库（自行刷题）</div>
-          <div v-for="(f, i) in rec.fallbackLinks" :key="i" class="rec-fallback">
-            <el-link type="info" :href="f.url" target="_blank" rel="noopener">{{ f.name }}</el-link>
-          </div>
-        </div>
-      </div>
-      <el-skeleton v-else :rows="4" animated />
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, markRaw } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, EditPen, CircleCheck, Timer, DataLine } from '@element-plus/icons-vue'
 
@@ -245,10 +211,7 @@ const overallMastery = ref(0)
 const today = reactive({ answerCount: 0, correctCount: 0, accuracy: 0, studyMinutes: 0 })
 const weakPoints = ref([])
 
-const dialogVisible = ref(false)
-const rec = ref(null)
-const recKp = ref('')
-const recLoading = ref(false)
+const router = useRouter()
 
 // AI 学情分析报告
 const reportLoading = ref(false)
@@ -345,28 +308,8 @@ async function loadDashboard() {
   }
 }
 
-async function openRecommend(knowledgePoint) {
-  dialogVisible.value = true
-  recKp.value = knowledgePoint
-  rec.value = null
-  recLoading.value = true
-  try {
-    const res = await fetch('/api/mastery/recommend?knowledgePoint=' + encodeURIComponent(knowledgePoint))
-    const json = await res.json()
-    if (json.code === 200 && json.data) {
-      rec.value = json.data
-    } else {
-      ElMessage.error(json.message || '获取推荐失败')
-    }
-  } catch (e) {
-    ElMessage.error('请求失败：' + e.message)
-  } finally {
-    recLoading.value = false
-  }
-}
-
-function resetRec() {
-  rec.value = null
+async function goPractice(knowledgePoint) {
+  router.push('/practice' + (knowledgePoint ? '?kp=' + encodeURIComponent(knowledgePoint) : ''))
 }
 
 async function loadReport(period) {
@@ -785,31 +728,6 @@ async function cleanupData() {
   border: 1px solid #eef0f7;
   border-radius: 10px;
   padding: 16px 18px;
-}
-
-/* 弹窗 */
-.rec-section {
-  margin-top: 14px;
-}
-.rec-section-title {
-  font-weight: 700;
-  margin-bottom: 8px;
-  color: #374151;
-}
-.rec-problem {
-  padding: 8px 0;
-  border-bottom: 1px dashed #ebeef5;
-}
-.rec-rating {
-  margin-left: 10px;
-  color: #f59e0b;
-  font-size: 13px;
-}
-.rec-tags {
-  margin-top: 4px;
-}
-.rec-fallback {
-  padding: 4px 0;
 }
 
 /* 数据保养面板 */

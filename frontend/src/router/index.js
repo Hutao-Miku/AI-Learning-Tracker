@@ -5,6 +5,7 @@ import VideoList from '../views/VideoList.vue'
 import QuizView from '../views/QuizView.vue'
 import QuizAllView from '../views/QuizAllView.vue'
 import ExamView from '../views/ExamView.vue'
+import PracticeView from '../views/PracticeView.vue'
 
 const routes = [
   {
@@ -38,6 +39,11 @@ const routes = [
     path: '/exam',
     name: 'ExamView',
     component: ExamView
+  },
+  {
+    path: '/practice',
+    name: 'PracticeView',
+    component: PracticeView
   }
 ]
 

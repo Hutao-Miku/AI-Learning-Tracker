@@ -19,11 +19,10 @@
         :closable="false"
         show-icon
         title="题目全部来自真实来源，绝不 AI 编造"
-        description="算法真题来自 Codeforces 正赛（不可达时退化为洛谷/牛客真实题库链接）；企业八股来自内置高频面试题库。同一周期只生成一次，重复点击直接加载已生成的试卷。"
+        description="算法真题来自 Codeforces 正赛（题面在本站实时抓取展示）；企业八股来自内置高频面试题库。统一在当前页面作答、交卷打分。"
         style="margin-bottom: 12px"
       />
 
-      <!-- 生成中/空态 -->
       <el-empty v-if="phase === 'idle' && !generating" description="点击上方按钮生成一份定期考核试卷" />
 
       <!-- 答题阶段 -->
@@ -38,43 +37,70 @@
         <div class="paper-meta">
           共 {{ paper.questions.length }} 题 ·
           客观题（八股）<span class="tag">自动批改</span> ·
-          实战挑战题（算法真题）<span class="tag">不计分·附链接</span>
+          实战挑战题（算法真题）<span class="tag">不计分·站内作答</span>
         </div>
 
         <div v-for="(q, idx) in paper.questions" :key="q.qid" class="question-block">
           <div class="q-head">
             <strong>第 {{ idx + 1 }} 题</strong>
             <el-tag size="small" :type="q.type === 'choice' ? 'primary' : 'warning'" style="margin-left: 8px">
-              {{ q.type === 'choice' ? '八股选择题' : '算法实战挑战' }}
+              {{ q.type === 'choice' ? '八股选择题' : '算法真题' }}
             </el-tag>
             <span class="q-kp">（{{ q.knowledgePoint || '—' }}）</span>
           </div>
-          <div class="q-stem">{{ q.stem }}</div>
 
           <!-- 选择题 -->
-          <el-radio-group v-if="q.type === 'choice'" v-model="answers[q.qid]" class="q-options">
-            <el-radio
-              v-for="opt in parseOptions(q.options)"
-              :key="opt.value"
-              :value="opt.value"
-              class="q-option"
-            >
-              {{ opt.label }}
-            </el-radio>
-          </el-radio-group>
+          <template v-if="q.type === 'choice'">
+            <div class="q-stem">{{ q.stem }}</div>
+            <el-radio-group v-model="answers[q.qid]" class="q-options">
+              <el-radio
+                v-for="opt in parseOptions(q.options)"
+                :key="opt.value"
+                :value="opt.value"
+                class="q-option"
+              >
+                {{ opt.label }}
+              </el-radio>
+            </el-radio-group>
+          </template>
 
-          <!-- 实战挑战题 -->
-          <div v-else class="challenge-box">
+          <!-- 算法真题：站内完整题面 -->
+          <template v-else>
+            <div v-if="stmt(q).loading" class="stmt-loading">题面加载中…</div>
+            <template v-else>
+              <div class="q-stem stmt">{{ stmt(q).statement || q.stem }}</div>
+              <div v-if="stmt(q).ioSamples && stmt(q).ioSamples.length" class="io-area">
+                <div v-for="(s, si) in stmt(q).ioSamples" :key="si" class="io-item">
+                  <div class="io-label">样例 {{ si + 1 }} 输入</div>
+                  <pre class="io-pre">{{ s.input }}</pre>
+                  <div class="io-label">样例 {{ si + 1 }} 输出</div>
+                  <pre class="io-pre">{{ s.output }}</pre>
+                </div>
+              </div>
+            </template>
+
             <el-input
-              v-model="answers[q.qid]"
+              v-model="algoCode[q.qid]"
               type="textarea"
               :rows="3"
-              placeholder="在此写下你的解法思路 / 代码框架（本题不计分，提交后可对照官方题解）"
+              placeholder="在此书写你的解法 / 代码草稿（本题不计分，提交后可在 Codeforces 对照题解）"
+              class="code-box"
             />
-            <el-link v-if="q.url" type="primary" :href="q.url" target="_blank" rel="noopener" :underline="false">
-              前往原题 / 题库 →
-            </el-link>
-          </div>
+            <div class="q-action algo-action">
+              <el-link
+                v-if="q.url"
+                type="primary"
+                :href="q.url"
+                target="_blank"
+                rel="noopener"
+                :underline="false"
+              >去 Codeforces 评测 →</el-link>
+              <el-radio-group v-model="answers[q.qid]" class="pass-group">
+                <el-radio value="passed">已通过</el-radio>
+                <el-radio value="failed">未通过</el-radio>
+              </el-radio-group>
+            </div>
+          </template>
         </div>
 
         <div class="submit-bar">
@@ -101,7 +127,7 @@
           <div class="w-head">
             <strong>第 {{ item.qid }} 题</strong>
             <el-tag size="small" :type="item.type === 'choice' ? 'danger' : 'warning'">
-              {{ item.type === 'choice' ? '八股选择题' : '算法实战挑战' }}
+              {{ item.type === 'choice' ? '八股选择题' : '算法真题' }}
             </el-tag>
             <span class="w-kp">{{ item.knowledgePoint }}</span>
           </div>
@@ -113,14 +139,19 @@
           <div v-if="item.type === 'choice' && item.correctAnswer" class="w-line">
             <span class="w-label">正确答案：</span><span class="ok">{{ item.correctAnswer }}</span>
           </div>
-          <div v-if="item.type === 'challenge'" class="w-line">
-            <span class="w-label">本题为实战挑战：</span>
-            <span>不计客观分，请前往链接提交并对照官方题解。</span>
+          <div v-if="item.type === 'challenge' || item.type === 'algorithm'" class="w-line">
+            <span class="w-label">实战挑战：</span>
+            <span>你标记「{{ item.userAnswer === 'passed' ? '已通过' : (item.userAnswer === 'failed' ? '未通过' : '未标记') }}」（本题不计客观分）</span>
           </div>
           <div v-if="item.explanation" class="w-explain">解析：{{ item.explanation }}</div>
-          <el-link v-if="item.url" type="primary" :href="item.url" target="_blank" rel="noopener" :underline="false">
-            原题 / 题库链接 →
-          </el-link>
+          <el-link
+            v-if="item.url"
+            type="primary"
+            :href="item.url"
+            target="_blank"
+            rel="noopener"
+            :underline="false"
+          >官方题面 / 评测 →</el-link>
         </div>
         <el-empty v-if="!wrongItems.length" description="本轮没有需要解析的题目 🎉" />
       </div>
@@ -138,11 +169,13 @@ const submitting = ref(false)
 const paper = ref(null)
 const result = ref(null)
 const answers = reactive({})
+const algoCode = reactive({})
+// 算法题面缓存：key -> { loading, statement, ioSamples }
+const stmtCache = reactive({})
 
 const wrongItems = computed(() => {
   if (!result.value) return []
-  // 错题 + 实战挑战题都展示解析
-  return result.value.items.filter(it => it.type === 'challenge' || it.isCorrect === false)
+  return result.value.items.filter(it => it.type === 'challenge' || it.type === 'algorithm' || it.isCorrect === false)
 })
 
 const resultSubTitle = computed(() => {
@@ -154,13 +187,40 @@ const resultSubTitle = computed(() => {
   return `实战挑战题 ${r.challengeCount} 道（不计分）`
 })
 
-function parseOptions(str) {
-  let arr = []
-  try {
-    arr = typeof str === 'string' ? JSON.parse(str) : Array.isArray(str) ? str : []
-  } catch {
-    return []
+function stmtKey(q) {
+  return 'a_' + (q.contestId != null ? q.contestId : 'L') + '_' + (q.index || 'x')
+}
+
+function stmt(q) {
+  const k = stmtKey(q)
+  const c = stmtCache[k]
+  if (c) return c
+  if (q.statement) {
+    stmtCache[k] = { loading: false, statement: q.statement, ioSamples: q.ioSamples || [] }
+    return stmtCache[k]
   }
+  const init = { loading: true, statement: '', ioSamples: [] }
+  stmtCache[k] = init
+  loadStatement(q, k)
+  return init
+}
+
+async function loadStatement(q, k) {
+  try {
+    const res = await fetch(`/api/practice/algorithm/statement?contestId=${q.contestId}&index=${encodeURIComponent(q.index)}`)
+    const json = await res.json()
+    if (json.code === 200 && json.data) {
+      stmtCache[k] = { loading: false, statement: json.data.statement || q.stem, ioSamples: json.data.ioSamples || [] }
+    } else {
+      stmtCache[k] = { loading: false, statement: q.stem, ioSamples: [] }
+    }
+  } catch (e) {
+    stmtCache[k] = { loading: false, statement: q.stem, ioSamples: [] }
+  }
+}
+
+function parseOptions(arr) {
+  if (!Array.isArray(arr)) return []
   return arr.map((o) => {
     const s = String(o)
     const m = s.match(/^\s*([A-Da-d])[\.、)]\s*([\s\S]*)$/)
@@ -228,6 +288,8 @@ async function submitAll() {
 
 function clearAnswers() {
   Object.keys(answers).forEach(k => delete answers[k])
+  Object.keys(algoCode).forEach(k => delete algoCode[k])
+  Object.keys(stmtCache).forEach(k => delete stmtCache[k])
 }
 
 function reset() {
@@ -282,6 +344,10 @@ function reset() {
 }
 .q-head {
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 .q-kp {
   color: #909399;
@@ -290,6 +356,42 @@ function reset() {
 .q-stem {
   margin: 6px 0 10px;
   line-height: 1.6;
+}
+.stmt {
+  background: #fafbff;
+  border: 1px solid #eef0f7;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+.stmt-loading {
+  color: #909399;
+  padding: 12px 0;
+}
+.io-area {
+  margin: 10px 0;
+}
+.io-item {
+  margin-bottom: 8px;
+}
+.io-label {
+  font-size: 12px;
+  color: #909399;
+  margin: 4px 0 2px;
+}
+.io-pre {
+  background: #2d2d2d;
+  color: #f5f5f5;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+.code-box {
+  margin-top: 10px;
 }
 .q-options {
   display: flex;
@@ -302,10 +404,18 @@ function reset() {
   line-height: 1.5;
   margin-right: 0;
 }
-.challenge-box {
+.q-action {
+  margin-top: 10px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.algo-action {
+  margin-top: 8px;
+}
+.pass-group {
+  margin-left: 4px;
 }
 .submit-bar {
   margin-top: 12px;
@@ -329,6 +439,10 @@ function reset() {
 }
 .w-head {
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .w-kp {
   color: #909399;

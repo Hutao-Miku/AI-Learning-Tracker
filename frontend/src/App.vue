@@ -5,7 +5,7 @@
       <nav class="nav">
         <router-link to="/">仪表盘</router-link>
         <router-link to="/courses">我的课程</router-link>
-        <router-link to="/quiz">全部题目</router-link>
+        <router-link to="/practice">去练真题</router-link>
         <router-link to="/exam">定期考核</router-link>
       </nav>
     </el-header>

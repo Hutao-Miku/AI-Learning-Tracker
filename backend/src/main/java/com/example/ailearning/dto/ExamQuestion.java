@@ -31,10 +31,20 @@ public class ExamQuestion {
     private String answer;
     /** 解析（学生视图为 null） */
     private String explanation;
-    /** 真题 / 题库链接（challenge 题提供） */
+    /** 真题 / 题库链接（challenge 题提供，指向真实题面评测页，非搜索页） */
     private String url;
     /** 对应 questions 表真实记录 id（bank 题用于回灌 SM-2；challenge 为 null） */
     private Long questionId;
+
+    // ===== 算法真题在站内含完整题面所需字段 =====
+    /** Codeforces 比赛 ID（source=codeforces 时有效，用于后端实时抓取题面） */
+    private Integer contestId;
+    /** Codeforces 题号（如 A/B/C） */
+    private String index;
+    /** 算法真题完整题面（本地兜底题直接内嵌；CF 题由前端按需拉取） */
+    private String statement;
+    /** 算法真题输入 / 输出样例 */
+    private java.util.List<IoSample> ioSamples;
 
     public ExamQuestion() {
     }
@@ -133,5 +143,37 @@ public class ExamQuestion {
 
     public void setQuestionId(Long questionId) {
         this.questionId = questionId;
+    }
+
+    public Integer getContestId() {
+        return contestId;
+    }
+
+    public void setContestId(Integer contestId) {
+        this.contestId = contestId;
+    }
+
+    public String getIndex() {
+        return index;
+    }
+
+    public void setIndex(String index) {
+        this.index = index;
+    }
+
+    public String getStatement() {
+        return statement;
+    }
+
+    public void setStatement(String statement) {
+        this.statement = statement;
+    }
+
+    public java.util.List<IoSample> getIoSamples() {
+        return ioSamples;
+    }
+
+    public void setIoSamples(java.util.List<IoSample> ioSamples) {
+        this.ioSamples = ioSamples;
     }
 }
